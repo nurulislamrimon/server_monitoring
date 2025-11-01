@@ -5,6 +5,8 @@ node_modules
 
 nginx/ssl
 
+data
+
 # compressed file
 *.zip
 *.tar.gz

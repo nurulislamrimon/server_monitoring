@@ -18,8 +18,9 @@ services:
     image: saas:prod
     container_name: saas_app_client
     restart: always
-    environment:
-      NODE_ENV: production
-      APP_NAME: saas_app_client
+    env_file:
+      - .env
     expose:
       - "5000"
+    volumes:
+      - ./data/sqlite:/app

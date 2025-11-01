@@ -3,6 +3,12 @@ node_modules
 
 nginx
 
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+
 # compressed file
 *.zip
 *.tar.gz
