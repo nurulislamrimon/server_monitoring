@@ -13,7 +13,8 @@ services:
       - client_saas
 
   client_saas:
-    image: saas:prod
+    build: .
+    # image: saas:prod
     container_name: saas_app_client
     restart: always
     env_file:

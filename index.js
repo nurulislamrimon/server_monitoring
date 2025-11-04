@@ -5,18 +5,35 @@ import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import promClient from "prom-client";
-
-const collectDefaultMetrics = promClient.collectDefaultMetrics;
-collectDefaultMetrics({ register: promClient.register });
+import responseTime from "response-time";
+import { createLogger } from "winston";
+import LokiTransport from "winston-loki";
 
 // ==================================
 // configuration ====================
 // ==================================
+
+// prometheus
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics({ register: promClient.register });
+
+// app and env
 dotenv.config();
 const app = express();
 app.use(express.json());
 
 const port = process.env.PORT || 5000;
+
+// logger for winston loki to use in the grafana
+const options = {
+  transports: [
+    new LokiTransport({
+      appName: "express",
+      host: "http://127.0.0.1:3100",
+    }),
+  ],
+};
+const logger = createLogger(options);
 
 // 🔹 Cloudflare Config
 const CLOUDFLARE_API = "https://api.cloudflare.com/client/v4";
@@ -49,6 +66,22 @@ db.prepare(
 ).run();
 
 // ==================================
+// route access history to monitor ==
+// ==================================
+
+const reqResTime = new promClient.Histogram({
+  name: "http_request_duration_seconds",
+  help: "Duration of HTTP requests in seconds",
+  labelNames: ["method", "route", "status_code"],
+  buckets: [1, 50, 100, 200, 400, 500, 800, 1000, 2000],
+});
+
+const count = new promClient.Counter({
+  name: "http_request_total",
+  help: "Total number of HTTP requests",
+});
+
+// ==================================
 // Middlewares ======================
 // ==================================
 app.use((req, res, next) => {
@@ -57,15 +90,41 @@ app.use((req, res, next) => {
   next();
 });
 
+// handle all routes
+app.use(
+  responseTime((req, res, time) => {
+    reqResTime
+      .labels({
+        method: req.method,
+        route: req.path,
+        status_code: res.statusCode,
+      })
+      .observe(time);
+  })
+);
+
 // ==================================
 // Routes ===========================
 // ==================================
 
 // 🏠 Default route
 app.get("/", (req, res) => {
+  count.inc();
+  logger.info(`Request from route: ${req.path}`);
   res.send({
     success: true,
     message: `Hello World! From ${process.env.APP_NAME}`,
+    tenant: req.tenant,
+  });
+});
+
+// error
+app.get("/error", (req, res) => {
+  count.inc();
+  logger.error(`Request from route: ${req.path}`);
+  res.send({
+    success: false,
+    message: `This is error route 😁`,
     tenant: req.tenant,
   });
 });
@@ -81,6 +140,7 @@ app.get("/metrics", async (req, res) => {
     res.status(500).end;
   }
 });
+
 // 🟢 CREATE new custom hostname + SSL (with background processing)
 app.post("/ssl", async (req, res) => {
   try {
