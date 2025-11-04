@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   nginx:
     image: nginx:alpine
@@ -20,7 +18,16 @@ services:
     restart: always
     env_file:
       - .env
-    expose:
-      - "5000"
+    ports:
+      - "5000:5000"
     volumes:
-      - ./data/sqlite:/app
+      - ./data/sqlite:/app/data
+
+      # - ./data/sqlite:/app
+
+  prom_server:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus-config.yml:/etc/prometheus/prometheus.yml

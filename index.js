@@ -4,7 +4,14 @@ import dotenv from "dotenv";
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
+import promClient from "prom-client";
 
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics({ register: promClient.register });
+
+// ==================================
+// configuration ====================
+// ==================================
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -41,14 +48,39 @@ db.prepare(
 `
 ).run();
 
-// 🧠 Middleware: tenant detection
+// ==================================
+// Middlewares ======================
+// ==================================
 app.use((req, res, next) => {
   const host = req.headers.host;
   req.tenant = host;
   next();
 });
 
-// 🟢 CREATE new custom hostname + SSL
+// ==================================
+// Routes ===========================
+// ==================================
+
+// 🏠 Default route
+app.get("/", (req, res) => {
+  res.send({
+    success: true,
+    message: `Hello World! From ${process.env.APP_NAME}`,
+    tenant: req.tenant,
+  });
+});
+
+// Prometheus route
+app.get("/metrics", async (req, res) => {
+  try {
+    res.set("Content-Type", promClient.register.contentType);
+    const metrics = await promClient.register.metrics();
+
+    res.send(metrics);
+  } catch (ex) {
+    res.status(500).end;
+  }
+});
 // 🟢 CREATE new custom hostname + SSL (with background processing)
 app.post("/ssl", async (req, res) => {
   try {
@@ -224,15 +256,6 @@ app.get("/ssl", (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
-
-// 🏠 Default route
-app.get("/", (req, res) => {
-  res.send({
-    success: true,
-    message: `Hello World! From ${process.env.APP_NAME}`,
-    tenant: req.tenant,
-  });
 });
 
 // 🚀 Start Server
