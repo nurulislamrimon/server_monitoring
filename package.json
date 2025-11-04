@@ -1,5 +1,5 @@
 {
-  "name": "multi_domain_nginx",
+  "name": "advanced-server",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
