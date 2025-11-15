@@ -13,8 +13,8 @@ services:
       - client_saas
 
   client_saas:
-    build: .
-    # image: saas:prod
+    # build: .
+    image: saas:prod
     container_name: saas_app_client
     restart: always
     env_file:
@@ -31,4 +31,10 @@ services:
     ports:
       - 9090:9090
     volumes:
-      - ./prometheus-config.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus:/prometheus
+      - ./prometheus-config.yml:/etc/prometheus/prometheus-config.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=1d"
+      - "--storage.tsdb.retention.size=512MB"
+      - "--storage.tsdb.wal-compression"
